@@ -1,0 +1,481 @@
+---
+title: "Cx4073 : Assignment 1"
+author: "Edwin Khoo Ding Neng"
+date: "U1721633J"
+output:
+  html_document:
+    theme: united
+    highlight: tango
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+### Analysis of Naval Propulsion Data
+
+Import the CSV data file `assign1_NavalData.csv` for analysis, and quickly check the structure of the data.
+```{r}
+navalData <- read.csv("assign1_NavalData.csv", header = TRUE)
+str(navalData)
+```
+
+The data is stored in a dataframe, with 10000 obs of 18 variables. Additionally, the variables of of 2 different data types, numeric (decimal) and integer data types.
+
+The following table summarizes the features/variables in the dataset. You will also find them in the text file `assign1_FeatureNames.txt`. The features/variables `X1` to `X16` are the predictors, while `Y1` and `Y2` are the *target* response variables.
+
+| Variable | Description |
+| -------- | ----------- |
+| X1 | Lever position (lp) |
+| X2 | Ship speed (v) [knots] |
+| X3 | Gas Turbine shaft torque (GTT) [kN m] |
+| X4 | Gas Turbine rate of revolutions (GTn) [rpm] |
+| X5 | Gas Generator rate of revolutions (GGn) [rpm] |
+| X6 | Starboard Propeller Torque (Ts) [kN] |
+| X7 | Port Propeller Torque (Tp) [kN] |
+| X8 | HP Turbine exit temperature (T48) [C] |
+| X9 | GT Compressor inlet air temperature (T1) [C] |
+| X10 | GT Compressor outlet air temperature (T2) [C] |
+| X11 | HP Turbine exit pressure (P48) [bar] |
+| X12 | GT Compressor inlet air pressure (P1) [bar] |
+| X13 | GT Compressor outlet air pressure (P2) [bar] |
+| X14 | Gas Turbine exhaust gas pressure (Pexh) [bar] |
+| X15 | Turbine Injecton Control (TIC) [%] |
+| X16 | Fuel flow (mf) [kg/s] |
+| Y1 | GT Compressor decay state coefficient |
+| Y2 | GT Turbine decay state coefficient |
+
+
+The data is from a simulator of a naval vessel, characterized by a Gas Turbine (GT) propulsion plant. You may treat the available data as if it is from a hypothetical naval vessel. The propulsion system behaviour has been described with the parameters `X1` to `X16`, as detailed above, and the target is to predict the performance decay of the GT components such as *GT Compressor* and *GT Turbine*. 
+
+**Task** : Build the best possible Linear Model you can to predict both `Y1` and `Y2`, using the training dataset `assign1_NavalData.csv`. Then predict `Y1` and `Y2` values using your model on the test dataset `assign1_NavalPred.csv`.
+
+---
+### Exploratory Data Analysis of Naval Propulsion Data
+
+Heads and tails displays the first and last few rows of the dataset, providing a general idea of the the variables actual values #and their magnitudes.
+```{r}
+head(navalData)
+tail(navalData)
+```
+
+Summary statistics for all variables
+```{r}
+summary(navalData)
+```
+
+It returns a table with the results of the summary function applied to each column in the data frame. For each column, it returns the minimum value, 1st quantile, median, mean, 3rd quantile and the maximum value, providing us with the spread, distribution and central tendency of the variables. 
+
+From the summary, it can be inferred that X9 and X12 poses no impact to any data variables since their values are consistent throughout and thus will have no impact in prediction and can be remove. Addtionally, X7 and X6 contains the exact same value so X7 can be removed since it is redundant.
+
+Remove redundant columns
+```{r}
+navalData<-subset(navalData, select = -c(X7,X9,X12) )
+str(navalData)
+```
+
+### Visualisation of Naval Propulsion Data
+Histogram plots for all individual variables to see distribution shape, center, range and variation
+```{r}
+hist(navalData$X1, col = "lightgreen", main = "Histogram of Lever position (lp)")
+hist(navalData$X2, col = "lightgreen", main = "Histogram of Ship speed (v) [knots]")
+hist(navalData$X3, col = "lightgreen", main = "Histogram of Gas Turbine shaft torque (GTT) [kN m]")
+hist(navalData$X4, col = "lightgreen", main = "Histogram of Gas Turbine rate of revolutions (GTn) [rpm]")
+hist(navalData$X5, col = "lightgreen", main = "Histogram of Gas Generator rate of revolutions (GGn) [rpm]")
+hist(navalData$X6, col = "lightgreen", main = "Histogram of Starboard Propeller Torque (Ts) [kN]")
+hist(navalData$X8, col = "lightgreen", main = "Histogram of HP Turbine exit temperature (T48) [C]")
+hist(navalData$X10, col = "lightgreen", main = "Histogram of GT Compressor outlet air temperature (T2) [C]")
+hist(navalData$X11, col = "lightgreen", main = "Histogram of HP Turbine exit pressure (P48) [bar]")
+hist(navalData$X13, col = "lightgreen", main = "Histogram of GT Compressor outlet air pressure (P2) [bar]")
+hist(navalData$X14, col = "lightgreen", main = "Histogram of Gas Turbine exhaust gas pressure (Pexh) [bar]")
+hist(navalData$X15, col = "lightgreen", main = "Histogram of Turbine Injecton Control (TIC) [%]")
+hist(navalData$X16, col = "lightgreen", main = "Histogram of Fuel flow (mf) [kg/s]")
+hist(navalData$Y1, col = "lightgreen", main = "Histogram of GT Compressor decay state coefficient")
+hist(navalData$Y2, col = "lightgreen", main = "Histogram of GT Turbine decay state coefficient")
+```
+
+It can be seen come of the variables such as X1, X2 are uniformly distributed while most others such as X4 and X14 are skewed to the left side. Also, it is observed that Y2 only has 3 different values, 0.98, 0.99, 1.0 and is slightly skewed to the left side.
+
+Box plots for all individual variables to visualise the summary statistics and spot outliers.
+```{r}
+boxplot(navalData$X1, horizontal = TRUE, col = "steelblue", main = "Boxplot of Lever position (lp)")
+boxplot(navalData$X2, horizontal = TRUE, col = "steelblue", main = "Boxplot of Ship speed (v) [knots]")
+boxplot(navalData$X3, horizontal = TRUE, col = "steelblue", main = "Boxplot of Gas Turbine shaft torque (GTT) [kN m]")
+boxplot(navalData$X4, horizontal = TRUE, col = "steelblue", main = "Boxplot of Gas Turbine rate of revolutions (GTn) [rpm]")
+boxplot(navalData$X5, horizontal = TRUE, col = "steelblue", main = "Boxplot of Gas Generator rate of revolutions (GGn) [rpm]")
+boxplot(navalData$X6, horizontal = TRUE, col = "steelblue", main = "Boxplot of Starboard Propeller Torque (Ts) [kN]")
+boxplot(navalData$X8, horizontal = TRUE, col = "steelblue", main = "Boxplot of HP Turbine exit temperature (T48) [C]")
+boxplot(navalData$X10, horizontal = TRUE, col = "steelblue", main = "Boxplot of GT Compressor outlet air pressure (P2) [bar]")
+boxplot(navalData$X11, horizontal = TRUE, col = "steelblue", main = "Boxplot of HP Turbine exit pressure (P48) [bar]")
+boxplot(navalData$X13, horizontal = TRUE, col = "steelblue", main = "Boxplot of Compressor outlet air pressure (P2) [bar]")
+boxplot(navalData$X14, horizontal = TRUE, col = "steelblue", main = "Boxplot of Gas Turbine exhaust gas pressure (Pexh) [bar]")
+boxplot(navalData$X15, horizontal = TRUE, col = "steelblue", main = "Boxplot of Turbine Injecton Control (TIC) [%]")
+boxplot(navalData$X16, horizontal = TRUE, col = "steelblue", main = "Boxplot of Fuel flow (mf) [kg/s]")
+boxplot(navalData$Y1, horizontal = TRUE, col = "steelblue", main = "Boxplot of GT Compressor decay state coefficient")
+boxplot(navalData$Y2, horizontal = TRUE, col = "steelblue", main = "Boxplot of GT Turbine decay state coefficient")
+```
+
+Some outliers can be seen in the box plots of X15 and X16. X15 containing quite a number of them clustered together, whearas X16 contains only a single outlier.
+
+Find the correlations between features and targets. This result is plotted in a mixed correlation graph.
+```{r}
+cor(navalData)
+correlation<-cor(navalData)
+#install.packages("corrplot")
+library(corrplot)
+corrplot(correlation, type="upper", method="circle",
+         tl.pos="lt", tl.col="black",  tl.offset=1, tl.srt=0, bg="black")
+# draw labels in black (disabling all the other stuff already drawn)
+corrplot(correlation, add=T, type="lower", method="number",
+         col="white", diag=F, tl.pos="n", cl.pos="n", bg="black",number.cex = 0.7)
+# if you don't like the lines on the diagonal, (ie diag="n" of corrplot.mixed),
+#  having a look at corrplot.mixed yields the following code:
+n <- nrow(correlation)
+```
+
+So, from the grapgh it can be seen that the features are closely related to one another, all of the correlation index being close to 1. On the other hand, the correlation between features and the 2 repective targets are very small and are majority negatively correlated. The highest correlation for Y1 and Y2 are X10 and X8 respectively, while the least correlated features with Y1 and Y2 are X3 and X14 respectively.
+
+Plot 2d scatterplots of all pairs of variables
+```{r}
+pairs(navalData, pch = 19, col = "blue")
+```
+
+From the scatter plots, it can be seen that some features have linear relations to one another, such as X1 and X2. Non-linear relations can also be found, such as X5 which has non linear relation to all other features. On the other hand, because the data plots are too clusted together, the relation of features to the targets cannot be determine by this plot alone however, nonlinearity is more prominent in the plots.
+---
+
+### Model Building
+
+### Perform Linear Regression (Y1 vs all others) & (Y2 vs all others)
+Fit a linear model on Y1/Y2 vs all other variables.
+This is the first model --- also called the FULL MODEL
+```{r , results="hide"}
+lmFit1a <- lm(Y1 ~ .-Y2, data = navalData)
+lmFit1b <- lm(Y2 ~ .-Y1, data = navalData)
+summary(lmFit1a)
+summary(lmFit1b)
+```
+
+Model for Y1:
+Residual standard error: 0.006122 on 9986 degrees of freedom
+Multiple R-squared:  0.8398, Adjusted R-squared:  0.8396
+F-statistic:  4027 on 13 and 9986 DF,  p-value: < 2.2e-16
+It seems that X4 is least significant (p-value = 0.944)
+
+Model for Y2:
+Residual standard error: 0.00355 on 9986 degrees of freedom
+Multiple R-squared:  0.7885,	Adjusted R-squared:  0.7882
+F-statistic:  2864 on 13 and 9986 DF,  p-value: < 2.2e-16
+It seems that X2 is least significant (p-value = 0.0431)
+
+Fit a linear model on Y1/Y2 vs all variables but the one with the least significance in the previous model
+```{r, results="hide"}
+lmFit2a <- update(lmFit1a, ~ . -X4, data = navalData)
+lmFit2b <- update(lmFit1b, ~ . -X2, data = navalData)
+summary(lmFit2a)
+summary(lmFit2b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared stay the same as the variable removed is too insignificant. F-statistic improved to  4363 compared to previous model and by removing X4, all the remaining variables are highly significant.
+There is no remaining less significant variables to be remove.
+
+Model for Y2:
+Multiple R-squared decreased to 0.7884 as a variable was removed. 
+Adjusted R-squared decreased to 0.7881 too, but not by much and by removing X2, all the remaining variables are highly significant and the F-statistic improved to 3101.
+There is no remaining less significant variables to be remove.
+
+### Checking for Non-linear Relations with Variables
+Plot Y1 against remaining variables individually to check for non-linear relations (blue)
+Plot Y2 against remaining variables individually to check for non-linear relations (green)
+```{r}
+plot(navalData$X1, navalData$Y1, pch = 19, col = "blue", main = "Lever position (lp) against GT Compressor decay state coefficient")
+plot(navalData$X2, navalData$Y1, pch = 19, col = "blue", main = "Ship speed (v) [knots] against GT Compressor decay state coefficient")
+plot(navalData$X3, navalData$Y1, pch = 19, col = "blue", main = "Gas Turbine shaft torque (GTT) [kN m] against GT Compressor decay state coefficient")
+plot(navalData$X5, navalData$Y1, pch = 19, col = "blue", main = "Gas Generator rate of revolutions (GGn) [rpm] against GT Compressor decay state coefficient")
+plot(navalData$X6, navalData$Y1, pch = 19, col = "blue", main = "Starboard Propeller Torque (Ts) [kN] against GT Compressor decay state coefficient")
+plot(navalData$X8, navalData$Y1, pch = 19, col = "blue", main = "HP Turbine exit temperature (T48) [C] against GT Compressor decay state coefficient")
+plot(navalData$X10, navalData$Y1, pch = 19, col = "blue", main = "GT Compressor outlet air pressure (P2) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X11, navalData$Y1, pch = 19, col = "blue", main = "HP Turbine exit pressure (P48) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X13, navalData$Y1, pch = 19, col = "blue", main = "Compressor outlet air pressure (P2) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X14, navalData$Y1, pch = 19, col = "blue", main = "Gas Turbine exhaust gas pressure (Pexh) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X15, navalData$Y1, pch = 19, col = "blue", main = "Turbine Injecton Control (TIC) [%] against GT Compressor decay state coefficient")
+plot(navalData$X16, navalData$Y1, pch = 19, col = "blue", main = "Fuel flow (mf) [kg/s] against GT Compressor decay state coefficient")
+
+plot(navalData$X1, navalData$Y2, pch = 19, col = "green", main = "Lever position (lp) against GT Compressor decay state coefficient")
+plot(navalData$X3, navalData$Y2, pch = 19, col = "green", main = "Gas Turbine shaft torque (GTT) [kN m] against GT Compressor decay state coefficient")
+plot(navalData$X4, navalData$Y2, pch = 19, col = "green", main = "Gas Turbine rate of revolutions (GTn) [rpm] against GT Compressor decay state coefficient")
+plot(navalData$X5, navalData$Y2, pch = 19, col = "green", main = "Gas Generator rate of revolutions (GGn) [rpm] against GT Compressor decay state coefficient")
+plot(navalData$X6, navalData$Y2, pch = 19, col = "green", main = "Starboard Propeller Torque (Ts) [kN] against GT Compressor decay state coefficient")
+plot(navalData$X8, navalData$Y2, pch = 19, col = "green", main = "HP Turbine exit temperature (T48) [C] against GT Compressor decay state coefficient")
+plot(navalData$X10, navalData$Y2, pch = 19, col = "green", main = "GT Compressor outlet air pressure (P2) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X11, navalData$Y2, pch = 19, col = "green", main = "HP Turbine exit pressure (P48) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X13, navalData$Y2, pch = 19, col = "green", main = "Compressor outlet air pressure (P2) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X14, navalData$Y2, pch = 19, col = "green", main = "Gas Turbine exhaust gas pressure (Pexh) [bar] against GT Compressor decay state coefficient")
+plot(navalData$X15, navalData$Y2, pch = 19, col = "green", main = "Turbine Injecton Control (TIC) [%] against GT Compressor decay state coefficient")
+plot(navalData$X16, navalData$Y2, pch = 19, col = "green", main = "Fuel flow (mf) [kg/s] against GT Compressor decay state coefficient")
+```
+
+Y1: Majority of the features shows non-linear relations with the target except for X1, X2 and X14. The scatter plot points are skewed to the left side and thus a curve is able to fit the points much better. The most prominent non-linear relation i would say is X15.
+
+Y2: Majority of the features shows non-linear relations with the target except for X1 and X14. The scatter plot points are skewed to the left side and thus a curve is able to fit the points much better. The most prominent non-linear relation i would say is X8.
+
+Fit a linear model on Y1/Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r, results="hide"}
+lmFit3a <- update(lmFit2a, ~ . + I(X15^2), data = navalData)
+lmFit3b <- update(lmFit2b, ~ . + I(X8^2), data = navalData)
+summary(lmFit3a)
+summary(lmFit3b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.8401 and 0.8398. And by adding a new variable, F-statistic drops but not by much to 4034, and all the remaining variables are highly significant.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.7888 and 0.7885. And by adding a new variable, F-statistic drops but not by much to 2868, and all the remaining variables are highly significant.
+
+X8 and X15 also shows non linearity with Y1 and Y2.
+Fit a linear model on Y1/Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r, results="hide"}
+lmFit4a <- update(lmFit3a, ~ . + I(X8^2), data = navalData)
+lmFit4b <- update(lmFit3b, ~ . + I(X15^2), data = navalData)
+summary(lmFit4a)
+summary(lmFit4b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected 0.8499 and 0.8497. And even by adding a new variable, F-statistic improved but not by much to 4038. However, with this addition, X3, X8, I(X15^2) became less significant.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.803 and 0.8028. And even by adding a new variable, F-statistic improved but not by much to 2908, and all the remaining variables are highly significant.
+
+I(X15^2) is the least significant variable in Y1 model.
+Also, X10 shows non-linearity with Y2.
+Fit a linear model on Y1 vs remaining variables but remove the less significant variables
+Fit a linear model on Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r,  results="hide"}
+lmFit5a <- update(lmFit4a, ~ . - I(X15^2), data = navalData)
+lmFit5b <- update(lmFit4b, ~ . + I(X10^2), data = navalData)
+summary(lmFit5a)
+summary(lmFit5b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared stayed the same. And by removing a less significant variable, F-statistic improved but not by much to 4349. X3 and X8 are the remaining less significant variables in the model.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.8058 and 0.8055. And by adding a new variable, F-statistic drops but not by much to 2762, and all the remaining variables are highly significant.
+
+X3 is the least significant variable in Y1 model.
+Also, X16 shows non-linearity with Y2.
+Fit a linear model on Y1 vs remaining variables but remove the less significant variables
+Fit a linear model on Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r,  results="hide"}
+lmFit6a <- update(lmFit5a, ~ . - X3, data = navalData)
+lmFit6b <- update(lmFit5b, ~ . + I(X16^2), data = navalData)
+summary(lmFit6a)
+summary(lmFit6b)
+```
+
+Model for Y1:
+Multiple R-squared drops slightly but Adjusted R-squared stayed the same. And by removing a less significant variable, F-statistic improved but not by much to 4710, and all the remaining variables are highly significant.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.809 and 0.8087. And by adding a new variable, F-statistic drops but not by much to 2643, and all the remaining variables are highly significant.
+
+X16 show non-linearity with Y1.
+Also, X3 show non-linearity with Y2.
+Fit a linear model on Y1/Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r,  results="hide"}
+lmFit7a <- update(lmFit6a, ~ . + I(X16^2), data = navalData)
+lmFit7b <- update(lmFit6b, ~ . + I(X3^2), data = navalData)
+summary(lmFit7a)
+summary(lmFit7b)
+```
+
+Model for Y1:
+Multiple R-squared stayed the same but Adjusted R-squared drops to 0.8496. And by adding a variable, F-statistic drops but not by much to 4348. Additionally I(X16^2) is a less significant variable and so i think that it would be better to stick with previous model.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.8104 and 0.81. And by adding a new variable, F-statistic drops but not by much to 2509, and X5 became slighlty less significant could attempt to remove.
+
+X10 shows non-linearity with Y1.
+Also, X5 became slighlty less significant could attempt to remove in Y2 model.
+Fit a linear model on Y1 vs remaining variables but introduce non-linear term(s) as per your observation above
+Fit a linear model on Y2 vs remaining variables but remove the less significant variables
+```{r,  results="hide"}
+lmFit7a <- update(lmFit6a, ~ . + I(X10^2), data = navalData)
+lmFit8b <- update(lmFit7b, ~ . - X5, data = navalData)
+summary(lmFit7a)
+summary(lmFit8b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.9183 and 0.9182. And even by adding a variable, F-statistic increases by a huge amount to 8630, and all remaining variables are highly significant.
+
+Model for Y2:
+Multiple R-squared drops slightly to 0.8103 but Adjusted R-squared stayed the same. And by removing a less significant variable, F-statistic improves but not by much to 2665, and all remaining variables are highly significant.
+
+X11 shows non-linearity with Y1.
+X4 shows non-linearity with Y2.
+Fit a linear model on Y1/Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r,  results="hide"}
+lmFit8a <- update(lmFit7a, ~ . + I(X11^2), data = navalData)
+lmFit9b <- update(lmFit8b, ~ . + I(X4^2), data = navalData)
+summary(lmFit8a)
+summary(lmFit9b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.9212 and 0.9211. And by adding a variable, F-statistic drops but not by much to 8343, and all remaining variables are highly significant.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared had little improvement to 0.8104 and 0.8101. And by removing a less significant variable, F-statistic drops but not by much to 2510. However the newly added variable is the least significant and i think the little improvement is not ideal and its better to revert to the previous model.
+
+X6 shows non-linearity with Y1.
+X13 shows non-linearity with Y2.
+Fit a linear model on Y1/Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r,  results="hide"}
+lmFit9a <- update(lmFit8a, ~ . + I(X6^2), data = navalData)
+lmFit9b <- update(lmFit8b, ~ . + I(X13^2), data = navalData)
+summary(lmFit9a)
+summary(lmFit9b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.9295 and 0.9294. And even by adding a new variable, F-statistic improved but not by much to 8779, and all remaining variables are highly significant.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.8209 and 0.8206 . And even by adding a new variable, F-statistic improved but not by much to 2692. I(X16^2) became alot less significant and can consider to remove.
+
+X13 shows non-linearity with Y1.
+Also, I(X16^2) became alot less significant and can consider to remove from Y2 model.
+Fit a linear model on Y1 vs remaining variables but introduce non-linear term(s) as per your observation above
+Fit a linear model on Y2 vs remaining variables but the one with the least significance
+```{r,  results="hide"}
+lmFit10a <- update(lmFit9a, ~ . + I(X13^2), data = navalData)
+lmFit10b <- update(lmFit9b, ~ . - I(X16^2), data = navalData)
+summary(lmFit10a)
+summary(lmFit10b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.9483 and 0.9482. And even by adding a new variable, F-statistic improved by a huge amount to 1.145e+04, and all remaining variables are highly significant.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared stayed the same. And by removing a less significant variable, F-statistic improved but not by much to 2859, and all remaining variables are highly significant.
+
+X5 shows non-linearity with Y1.
+X6 shows non-linearity with Y2.
+Fit a linear model on Y1/Y2 vs remaining variables but introduce non-linear term(s) as per your observation above
+```{r,  results="hide"}
+lmFit11a <- update(lmFit10a, ~ . + I(X5^2), data = navalData)
+lmFit11b <- update(lmFit10b, ~ . + I(X6^2), data = navalData)
+summary(lmFit11a)
+summary(lmFit11b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.9497 and 0.9496. And by adding a new variable, F-statistic drops by a decent amount to 1.108e+04, but all remaining variables are still highly significant.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.8296 and 0.8294 . And even by adding a new variable, F-statistic improved but not by much to 2860, and all remaining variables are highly significant.
+
+### Check for Non-linear mutual Interactions
+
+Fit a linear model on Y1/Y2 vs remaining variables but introduce a non-linear interaction term between the variables that showed prominent trends of non-linearity previously based on the improvement in R and F-stats.
+X11 and X5 show great improvement for Y1.
+X15 and X10 show great improvement for Y2.
+```{r,  results="hide"}
+lmFit12a <- update(lmFit11a, ~ . + X11:X5, data = navalData)
+lmFit12b <- update(lmFit11b, ~ . + X15:X10, data = navalData)
+summary(lmFit12a)
+summary(lmFit12b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.961 and 0.9609 . And even by adding a new variable, F-statistic improved but not by much to 1.367e+04. X1, X16 became less significant in the process and can be considered to be removed.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared improved as expected to 0.8403 and 0.84 . And even by adding a new variable, F-statistic improved but not by much to 2918. X10 became less significant in the process and can be considered to be removed.
+
+X16 is the least significant and can consider to remove from Y1 model.
+Also, X10 is the least significant and can consider to remove from Y2 model.
+Fit a linear model on Y1/Y2 vs remaining variables but the one with the least significance
+```{r,  results="hide"}
+lmFit13a <- update(lmFit12a, ~ . - X16, data = navalData)
+lmFit13b <- update(lmFit12b, ~ . -X10, data = navalData)
+summary(lmFit13a)
+summary(lmFit13b)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared stayed the same. And by removing a less significant variable, F-statistic improved but not by much to 1.446e+04. X1 is still less significant and can be considered to be removed.
+
+Model for Y2:
+Multiple R-squared and Adjusted R-squared stayed the same. And by removing a less significant variable, F-statistic improved but not by much, to 3090, and all the remaining variables are highly significant.
+
+X1 is the least significant and can consider to remove from Y1 model.
+Fit a linear model on Y1 vs remaining variables but the one with the least significance
+```{r, results="hide"}
+lmFit14a <- update(lmFit13a, ~ . - X1, data = navalData)
+summary(lmFit14a)
+```
+
+Model for Y1:
+Multiple R-squared and Adjusted R-squared stayed the same. And by removing a less significant variable, F-statistic improved but not by much to 1.536e+04, and all the remaining variables are highly significant.
+
+Check the (so far) Best Model more carefully
+print the "summary" of your Best Models (so far) for Y1 & Y2
+```{r}
+summary(lmFit14a)
+summary(lmFit13b)
+```
+
+Check the model for potential outliers
+```{r}
+plot(lmFit14a)
+plot(lmFit13b)
+```
+
+There are some visible outliers that can be remove in order to boost models performance.
+
+Remove outliers and high-leverage points
+Fit your best model to the clean dataset
+```{r}
+navalData_A <- subset(navalData, select = -c(Y2))
+navalData_B <- subset(navalData, select = -c(Y1))
+cd <- cooks.distance(lmFit14a)
+navalData_A.clean <- navalData_A[abs(cd) < 4/nrow(navalData_A), ]
+nrow(navalData_A.clean)
+formula(lmFit14a)
+lmFita <- lm(formula(lmFit14a), data = navalData_A.clean)
+summary(lmFita)
+plot(lmFita)
+
+cd <- cooks.distance(lmFit13b)
+navalData_B.clean <- navalData_B[abs(cd) < 4/nrow(navalData_B), ]
+nrow(navalData_B.clean)
+formula(lmFit13b)
+lmFitb <- lm(formula(lmFit13b), data = navalData_B.clean)
+summary(lmFitb)
+plot(lmFitb)
+```
+
+Both models improved significantly in terms of R and F-statistic.
+
+---
+
+### Prediction of Naval Propulsion Data
+
+Import the CSV data file `assign1_NavalPred.csv`. And use best model to predict values. Values of Y1 and Y2 are stored in a csv file `assign1_NavalPred_result.csv`.
+```{r}
+navalPred <- read.csv("assign1_NavalPred.csv", header = TRUE)
+y1<-predict(lmFita, navalPred)
+y2<-predict(lmFitb, navalPred)
+navalPred$Y1<-y1
+navalPred$Y2<-y2
+write.csv(navalPred, "assign1_NavalPred_result.csv")
+```
