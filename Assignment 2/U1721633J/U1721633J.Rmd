@@ -1,0 +1,298 @@
+---
+title: 'Cx4073 : Assignment 2'
+author: "Edwin Khoo Ding Neng"
+date: "U1721633J"
+output:
+  html_document:
+    highlight: tango
+    theme: paper
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+### Targeted Marketing for Car Insurance
+
+Suppose you the Data Scientist in a small Car Insurance company, and you want to judge if the Customers will accept or reject a new Insurance product that the company is going to launch. Your company did a pilot with 9000 customers and obtained the corresponding dataset. The classification goal is to learn from this pilot, and predict if a targeted customer will respond *Yes* to the offer. Your company also wants to identify the top three variables that may affect the response of the customers, and they also want to know how to increase the chances for the customers to respond *Yes* to the offered Insurance product.
+
+---
+
+### Analysis of Marketing Data
+
+Import the CSV data file `assign2_MarketData.csv` for analysis, and quickly check the structure of the data.
+
+```{r}
+marketData <- read.csv("assign2_MarketData.csv", header = TRUE)
+str(marketData)
+```
+
+The goal is to predict the response variable `Response` for each person -- that is, whether a person would accept the new *Insurance Product* being offered by your company. Before you do that, tag the variables under **Demographic Profile** or **Insurance Profile** of the customers, as per your understanding. Justify why the variables belong to Demographic or Insurance profile of a customer, if required.
+
+---
+
+#### Problem 1
+
+Build an optimal tree-based classification model for `Response` vs just the **Insurance Profile** of a customer. Check the relevant accuracy parameters of your model, and use it to predict `Response` in the `assign2_MarketPred.csv`. 
+
+* Identify the *top three* important variables in this case. 
+* Why are they important? Justify in terms of the Pilot data.
+* How would you influence `Response` using these variables?
+
+
+#### Problem 2
+
+Build an optimal tree-based classification model for `Response` vs both **Demographic Profile** and **Insurance Profile** of a customer. Check the relevant accuracy parameters of your model, and use it to predict `Response` in the `assign2_MarketPred.csv`. 
+
+* Identify the *top three* important variables in this case. 
+* Why are they important? Justify in terms of the Pilot data.
+* How would you influence `Response` using these variables?
+
+---
+
+### Exploration of Marketing Data
+
+Heads and tails displays the first and last few rows of the dataset, providing a general idea of the the variables values and their magnitudes.
+```{r}
+head(marketData)
+tail(marketData)
+```
+
+Summary statistics for all variables
+```{r}
+summary(marketData)
+```
+
+Illustrates distribustion of target `Response` in dataset.
+
+```{r}
+cols <- c("red","green")
+plot(marketData$Response, col = cols)
+
+```
+It can be seen that the amount of `Response` are not evenly distributed and thus appropriate sampling is required in the model building.
+
+Ordering and simplifing the `Effective.to.Date` into the months. Its observed that the data only contians January and Febuary so They are leveled accordingly. So new `Effective.to.Date` contains two level "Jan" and "Feb".
+```{r}
+#install.packages("lubridate",repos="http://cran.us.r-project.org")
+library(lubridate)
+
+a<-as.character(marketData$Effective.To.Date)
+b<-as.Date.character(a, format = "%m/%d/%y")
+
+#transform data to month names
+marketData$Effective.To.Date <-month(b, label = TRUE)
+marketData$Effective.To.Date <- factor(marketData$Effective.To.Date, 
+                             levels = c("Jan","Feb"),ordered = FALSE)
+str(marketData)
+```
+
+Firstly, `Customer` was not included in exploration as the data is a randomly generated ID which will show no pattern or trend when plotted against `Response`.
+Explore the `Response` vs selected variables in the **Insurance Profile** of a customer.
+Variables in **Insurance Profile**:
+1. Customer.Lifetime.Value
+2. Coverage
+3. Effective.To.Date
+4. Monthly.Premium.Auto
+5. Months.Since.Last.Claim
+6. Months.Since.Policy.Inception
+7. Number.of.Policies
+8. Policy.Type
+9. Policy
+10. Renew.Offer.Type
+11. Total.Claim.Amount
+
+All of the above variables are chosen as **Insurance Profile** of a customer. They are all details in which a customer insurance profile should include as they are details of the policies itself and such exisiting records of policies with the insurance companies. Exploration plots are only done for those significant features.
+
+```{r}
+plot(marketData$Customer.Lifetime.Value, marketData$Response, ylab="Response", xlab="Lifetime Value", col = cols[as.numeric(marketData$Response)])
+plot(marketData$Effective.To.Date, marketData$Response, ylab="Response", xlab="Effective to Date")
+plot(marketData$Monthly.Premium.Auto, marketData$Response, ylab="Response", xlab="Auto Premium", col = cols[as.numeric(marketData$Response)])
+plot(marketData$Policy, marketData$Response, ylab="Response", xlab="Policy")
+plot(marketData$Renew.Offer.Type, marketData$Response, ylab="Response", xlab="Renew Offer")
+plot(marketData$Total.Claim.Amount, marketData$Response, ylab="Response", xlab="Total Claim Amount", col = cols[as.numeric(marketData$Response)])
+```
+The list below shows variables with signifance and its observered trends and behavious with target `Response`.
+Lifetime Value: When value increases beyond a threshold of about 40000, all `Response` becomes "No".
+Effective to Date: January has a slighlt higher "Yes" `Response` than Febuary.
+Auto Premium: When value increases beyong threshold of about 150, the `Response` concentrates towards "No".
+Policy: There is a noticable difference in the "Yes" "No" `Response` between the different Level of the Special policies.
+Renew Offer: The Offer2 renew offers shows the most "Yes" `Response` distribution, while Offer 3 & 4 reported almost all `Response` "No".
+Total Claim Amount: When value increases beyond a threshold of about 1500, all `Response` becomes "No".
+
+Explore the `Response` vs selected variables in the **Demographic Profile** of a customer.
+Variables in **Demograpgic Profile**:
+1. State
+2. Education
+3. EmploymentStatus
+4. Gender
+5. Income
+6. Location.Code
+7. Marital.Status
+8. Number.of.Open.Complaints
+9. Sales.Channel
+10. Vehicle.Class
+11. Vehicle.Size
+
+All of the above variables are chosen as **Demographic Profile** of a customer. They are all details in which a customer background information of a customer profile should include. Exploration plots are only done for those significant features.
+
+
+```{r}
+plot(marketData$Income, marketData$Response, ylab="Response", xlab="Income", col = cols[as.numeric(marketData$Response)])
+plot(marketData$EmploymentStatus, marketData$Response, ylab="Response", xlab="Emploment Status")
+plot(marketData$Location.Code, marketData$Response, ylab="Response", xlab="Location")
+plot(marketData$Marital.Status, marketData$Response, ylab="Response", xlab="Marital Status")
+plot(marketData$Sales.Channel, marketData$Response, ylab="Response", xlab="Sales Channel")
+plot(marketData$Vehicle.Class, marketData$Response, ylab="Response", xlab="Vehicle Class")
+plot(marketData$Education, marketData$Response, ylab="Response", xlab="Education")
+```
+The list below shows variables with signifance and its observered trends and behavious with target `Response`.
+Income: There is a some sparity in the Yes `Response` at certian values of Income.
+Employment Status: Retired Customer has a high percentage of having a "Yes" `Response`.
+Location: Customer staying in the suburban has a higher probability in having a "Yes" `Response`.
+Marital Status: Divorcee has a higher probability in having a "Yes" `Response`.
+Sales Channel: Customer approached by an agent has a higher probability in having a "Yes" `Response`.
+Vehicle Class: Customer driving a luxury car has the highest probability of having a "No" `Response`.
+Education: Highly educated CUstomer has a higher chance of having a "Yes" `Response`.
+---
+
+### Model Building
+
+Split into Train and Validation sets
+Training Set : Validation Set = 70 : 30 (random)
+Since in the above exploration it is noted that the data is imbalanced so SMOTE algorithm will be applied to balance the data by oversampling the minority class.
+
+```{r}
+set.seed(13)
+train <- sample(nrow(marketData), 0.7*nrow(marketData), replace = FALSE)
+marketTrain <- marketData[train,]
+marketValid <- marketData[-train,]
+#install.packages("DMwR")
+table(marketTrain$Respose)
+library(DMwR)
+train_smote <- SMOTE(Response ~., marketTrain, perc.over = 500, perc.under = 120)
+table(train_smote$Response)
+summary(train_smote)
+```
+The balancing ensures the model build based on the dataset will be able to predict both classes without biased accuracy to either one class.
+
+Build Forest Model on **Insurance profile** of a customer (Problem 1)
+
+```{r}
+library(randomForest)
+# Build a random forest model on Insurance profile
+rfFit1 <- randomForest(Response ~ .- Customer - State - Education - EmploymentStatus - Gender 
+                      - Income - Location.Code - Marital.Status - Number.of.Open.Complaints - Sales.Channel 
+                      - Vehicle.Class - Vehicle.Size, data = train_smote, 
+                      ntree = 800, mtry = 4,
+                      na.action = na.action(train_smote),
+                      importance = TRUE)                
+rfFit1
+
+# Make predictions on data set
+predData1 <- predict(rfFit1, marketValid, type = "class")
+# Display summary
+summary(predData1)
+# Display confusion matrix since it is binary classification
+table(marketValid$Response, predData1)
+```
+OOB estimate of  error rate: 3.49%
+
+The prediction on the validation set:
+Misclassification error of (25 + 188) / (2127 + 188 +25 + 360) = 212 / 2700 = 0.079
+
+Build Forest Model on **Demographic profile** of a customer (Problem 2)
+
+```{r}
+library(randomForest)
+# Build a random forest model on Demographics profile
+rfFit2 <- randomForest(Response ~ .-Customer - Customer.Lifetime.Value - Coverage - Effective.To.Date - Monthly.Premium.Auto
+                      - Months.Since.Last.Claim - Months.Since.Policy.Inception - Number.of.Policies - Policy.Type 
+                      - Policy - Renew.Offer.Type - Total.Claim.Amount, data = train_smote, 
+                      ntree = 1000, mtry = 6,
+                      na.action = na.action(train_smote),
+                      importance = TRUE)                
+rfFit2
+
+# Make predictions on data set
+predData2 <- predict(rfFit2, marketValid, type = "class")
+
+# Display summary
+summary(predData2)
+
+# Display confusion matrix since it is binary classification
+table(marketValid$Response, predData2)
+```
+
+OOB estimate of  error rate: 10.53%
+The prediction on the validation set:
+Misclassification error of (536 + 29) / (1779 + 536 + 29 + 356) = 565 / 2700 = 0.21
+
+So, from the classification error alone, it can be infered that **Insurance profile** of a custumer provides a better gauge to predict the `Response`, compared to **Demographic profile** of a customer. This result is expected as the **Demographic profile** only serves as a general indicator of the customers background whereas the **Insurance profile** provides a more specific pool of information. 
+Additionally, althought the misclassification for both problems are high for the validation set, it is highly liekly due to the fact that the validation set comes from an imbalanced set and thus doesnt fits well with the predicted data.
+---
+
+### Prediction and Interpretation
+
+Evaluate the features based on importance in the **Insurance profile** (Problem 1)
+```{r}
+# Rank feature based on importance in the model
+importance(rfFit1)       
+varImpPlot(rfFit1)
+```
+The top 3 variables as infered from **Insurance profile** are 
+1. Renew Offer Type
+2. Total Claim Amount
+3. Customer Lifetime Value
+Although Months Since Last Claim and Months since policy Inception are of higher importance in accuracy, the importance in Gini is quite low and considering both the factors i think Total Claim Amount and Customer Lifetime Value are better.
+Additionally, this results are aline with those in our data exploration as we had also noted these 3 to be of some significance. 
+Based on the explorations of the pilot data:
+1. Renew Offer Type: The Offer 2 renew offers shows the most "Yes" `Response` distribution, while Offer 3 & 4 reported almost all `Response` "No". Therefore, its impact to differentiate between the classes is significant.
+2. Total Claim Amount: When value increases beyond a threshold of about 1500, all `Response` becomes "No". Therefore, its impact to differentiate between the classes is significant.
+3. Customer Lifetime Value: When value increases beyond a threshold of about 40000, all `Response` becomes "No". Therefore, its impact to differentiate between the classes is significant.
+
+In conclusion, in order to entice cutomers to have a "Yes" `Response`, the company could alter the renew offer type of the new product to the Offer 2 Type and eliminate the option of Offer Type 3 and 4, as the customers finds Offer 2 Type renewal as the most appealing. This might be due to the terms being less binding or demanding.
+Additionally, the company can shift its focus of audience to one where the customer profile indicates that they do not already have a long standing insurance plan with the company. This is due to the fact that if the customer already hits lifetime value of a threshold, they are less inclined to change policies. This is also supported by the fact that if the total claim amount is higher than 1500, the customer will already have a a certain loyality and faith in the product he/she is using and is less inclined to want to change.
+
+Evaluate the features based on importance in the **Demographic profile** (Problem 2)
+```{r}
+# Rank feature based on importance in the model
+importance(rfFit2)       
+varImpPlot(rfFit2)
+```
+The top 3 variables as infered from the graph **Demographics profile** are 
+1. Income
+2. Education
+3. Sales Channel
+
+Based on the explorations of the pilot data:
+1. Income: There is a some sparity in the Yes `Response` at certian values of Income.
+2. Education: Education: Highly educated CUstomer has a higher chance of having a "Yes" `Response`.
+3. Sales Channel: Customer approached by an agent has a higher probability in having a "Yes" `Response`.
+
+In conclusion, in order to entice cutomers to have a "Yes" `Response`, the company focus its target audience to customer with sustainable income, as customer will be more likely to to have a "Yes" `Response` when they have spare cash to pay the premium.
+Additionally, the target audience should be highly educated customers as they are more aware of the benefits of having auto insurance and will tend to `Response` "Yes". Lastly, company should organise roadshows where agents are able to approach a customer and provide a human touch when promoting the new product. Statistic have showed that the agents are able increase the likelyhood of a customer having a "Yes" `Response`.
+
+Import the CSV data file `assign2_MarketPred.csv`. And use best model to predict values. Values of `Response` are stored in variables `P1` and `P2`  for problem 1 and 2 respectively in a csv file `assign2_MarketPred_result.csv`.
+
+```{r}
+marketPred <- read.csv("assign2_marketPred.csv", header = TRUE)
+library(lubridate)
+a<-as.character(marketPred$Effective.To.Date)
+b<-as.Date.character(a, format = "%m/%d/%y")
+
+#transform data to month names
+marketPred$Effective.To.Date <-month(b, label = TRUE)
+marketPred$Effective.To.Date <- factor(marketPred$Effective.To.Date, 
+                             levels = c("Jan","Feb"),ordered = FALSE)
+marketPred$Policy <- factor(marketPred$Policy, levels = levels(marketTrain$Policy))
+p1<-predict(rfFit1, marketPred, type="class")
+p2<-predict(rfFit2, marketPred, type="class")
+marketPred$P1<-p1
+marketPred$P2<-p2
+write.csv(marketPred, "assign2_marketPred_result.csv")
+```
